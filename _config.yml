@@ -18,8 +18,8 @@ email: prunkdump@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   GnuVario is an open-source and open-hardware variometer
   project based on the Arduino platform.
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "https://prunkdump.github.io/arduino-variometer" # the base hostname & protocol for your site, e.g. http://example.com
+baseurl: "/arduino-variometer" # the subpath of your site, e.g. /blog
+url: "https://prunkdump.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: prunkdump
 github_username:  prunkdump
 
