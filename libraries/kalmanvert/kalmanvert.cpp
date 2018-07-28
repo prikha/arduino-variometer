@@ -3,14 +3,14 @@
 #include <Arduino.h>
 
 void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa, unsigned long timestamp) {
-
+  Serial.begin(9600);
   /* init base values */
   p = startp;
   v = 0;
   a = starta;
   t = timestamp;
   calibrationDrift = 0.0;
-    
+
   /* init variance */
   varp = sigmap * sigmap;
   vara = sigmaa * sigmaa;
@@ -23,7 +23,13 @@ void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa
 }
 
 void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
-
+  Serial.print("Kalman::update( ");
+  Serial.print("altitude: ");
+  Serial.print(mp);
+  Serial.print("acceleration: ");
+  Serial.print(ma);
+  Serial.print(")");
+  Serial.println("");
   /**************/
   /* delta time */
   /**************/
@@ -36,15 +42,15 @@ void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
   /**************/
 
   /* values */
-  a = ma;  // we use the last acceleration value for prediction 
+  a = ma;  // we use the last acceleration value for prediction
   double dtPower = dt * dt; //dt^2
   p += dt*v + dtPower*a/2;
   v += dt*a;
-  //a = ma; // uncomment to use the previous acceleration value 
+  //a = ma; // uncomment to use the previous acceleration value
 
   /* covariance */
   double inc;
-  
+
   dtPower *= dt;  // now dt^3
   inc = dt*p22+dtPower*vara/2;
   dtPower *= dt; // now dt^4
@@ -72,7 +78,7 @@ void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
   p12 -= k12 * p11;
   p21 -= k11 * p21;
   p11 -= k11 * p11;
- 
+
 }
 
 double kalmanvert::getPosition() {

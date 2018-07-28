@@ -6,10 +6,10 @@ beeper::beeper(double sinkingThreshold, double climbingThreshold, double nearCli
 
   /* save volume */
   volume = baseVolume;
-  
+
   /* set threshold */
   setThresholds(sinkingThreshold, climbingThreshold, nearClimbingSensitivity);
-  
+
   /* init private vars */
   beepStartTime = 0;
   beepState = 0;
@@ -18,9 +18,9 @@ beeper::beeper(double sinkingThreshold, double climbingThreshold, double nearCli
 
 void beeper::setThresholds(double sinkingThreshold, double climbingThreshold, double nearClimbingSensitivity) {
 
-  beepSinkingThreshold = sinkingThreshold;
-  beepGlidingThreshold = climbingThreshold - nearClimbingSensitivity;
-  beepClimbingThreshold = climbingThreshold;
+  beepSinkingThreshold = sinkingThreshold; // -2
+  beepGlidingThreshold = climbingThreshold - nearClimbingSensitivity; // 1.5
+  beepClimbingThreshold = climbingThreshold; // +2
 }
 
 void beeper::setVolume(uint8_t newVolume) {
@@ -40,7 +40,7 @@ void beeper::setGlidingBeepState(boolean status) {
     bst_unset(GLIDING_BEEP_ENABLED);
   }
 }
-	    
+
 void beeper::setGlidingAlarmState(boolean status) {
   if( status ) {
     bst_set(GLIDING_ALARM_ENABLED);
@@ -78,7 +78,7 @@ void beeper::setBeepParameters(double velocity) {
 
 
 void beeper::setVelocity(double velocity) {
-  
+
   /* check if we need to change the beep type */
   boolean beepTypeChange = false;
   switch( beepType ) {
@@ -130,8 +130,8 @@ void beeper::setVelocity(double velocity) {
     bst_unset(CLIMBING_ALARM);
     bst_unset(SINKING_ALARM);
   }
-      
-	
+
+
 
   /* start a new beep if needed */
   if( (beepTypeChange && !bst_isset(CLIMBING_ALARM) && !bst_isset(SINKING_ALARM) ) ||
@@ -154,7 +154,7 @@ void beeper::setVelocity(double velocity) {
       beepType = BEEP_TYPE_CLIMBING;
     }
   }
- 
+
   /* check if we need to change the beep parameters */
   /* !!! not forcing freq change !!! */
   if( startAlarm || beepTypeChange ||
@@ -179,7 +179,7 @@ void beeper::setBeepPaternPosition(double velocity) {
       (beepType == BEEP_TYPE_SINKING || beepType == BEEP_TYPE_SILENT) ) {
     return;
   }
-  
+
   unsigned long currentTime = millis();
   double currentLength = (double)(currentTime - beepStartTime) / 1000.0;
 
@@ -250,9 +250,9 @@ void beeper::setBeepPaternPosition(double velocity) {
 
 
 void beeper::setTone() {
-  
+
   /* alarme case */
-  if(  bst_isset(CLIMBING_ALARM) || bst_isset(SINKING_ALARM) ) { 
+  if(  bst_isset(CLIMBING_ALARM) || bst_isset(SINKING_ALARM) ) {
 
     /******************/
     /* climbing alarm */
@@ -289,7 +289,7 @@ void beeper::setTone() {
       }
     }
   } else {
-    
+
     /****************/
     /* sinking beep */
     /****************/
@@ -352,11 +352,11 @@ void beeper::setTone() {
   /* tone is set */
   /***************/
   bst_unset(BEEP_NEW_FREQ);
-}	
+}
 
 
 void beeper::update() {
   setBeepPaternPosition(beepVelocity);
   setTone();
-  
+
 }
