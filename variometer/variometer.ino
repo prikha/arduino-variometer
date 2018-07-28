@@ -325,23 +325,40 @@ void loop() {
   /* compute vertical velocity */
   /*****************************/
 #ifdef HAVE_ACCELEROMETER
-  if( ms5611_dataReady() && vertaccel.dataReady() ) {
-    ms5611_updateData();
+  unsigned long start_time = millis();
+  if (ms5611_dataReady()) {
+    Serial.print("Barometer ready:");
+    unsigned long baro_ready = millis() - start_time;
+    Serial.print(baro_ready);
+    Serial.print(" ");
+    if(vertaccel.dataReady()) {
+      Serial.print("Accel ready:");
+      Serial.print(millis()-baro_ready);
+      Serial.println("");
 
-    double barAlt = ms5611_getAltitude();
-    double vertAcc = vertaccel.getValue();
+      ms5611_updateData();
 
-    // Monitor Kalman input with accel
-    Serial.print("Kalman input(with vertaccel): ");
-    Serial.print("altitude: ");
-    Serial.print(barAlt);
-    Serial.print("acceleration: ");
-    Serial.print(vertAcc);
-    Serial.println("");
+      double barAlt = ms5611_getAltitude();
+      double vertAcc = vertaccel.getValue();
 
-    kalmanvert.update( barAlt,
-                       vertAcc,
-                       millis() );
+      // Monitor Kalman input with accel
+      Serial.print("Kalman input(with vertaccel): ");
+      Serial.print("altitude: ");
+      Serial.print(barAlt);
+      Serial.print("acceleration: ");
+      Serial.print(vertAcc);
+      Serial.println("");
+
+      kalmanvert.update( barAlt,
+                         vertAcc,
+                         millis() );
+
+      Serial.print("altitude: ");
+      Serial.print(kalmanvert.getPosition());
+      Serial.print("acceleration: ");
+      Serial.print(kalmanvert.getAcceleration());
+      Serial.println("");
+    }
 #else
   if( ms5611_dataReady() ) {
     ms5611_updateData();
