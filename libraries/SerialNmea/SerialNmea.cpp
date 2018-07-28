@@ -35,7 +35,7 @@ ISR(USART_UDRE_vect) {
 
 
 void SerialNmea::begin(unsigned long baud, bool rxEnable) {
-   
+
   /*******************/
   /* hardware config */
   /*******************/
@@ -48,11 +48,11 @@ void SerialNmea::begin(unsigned long baud, bool rxEnable) {
     UCSRA = 0;
     baud_setting = (F_CPU / 8 / baud - 1) / 2;
   }
-  
+
   /* set baud setting */
   UBRRH = baud_setting >> 8;
   UBRRL = baud_setting;
-  
+
   /* set mode */
 #if defined(__AVR_ATmega8__)
   UCSRC = SERIAL_NMEA_MODE | 0x80; // select UCSRC register (shared with UBRRH)
@@ -66,7 +66,7 @@ void SerialNmea::begin(unsigned long baud, bool rxEnable) {
   } else {
     UCSRB = SERIAL_NMEA_INT_MODE;
   }
-  
+
   /*********************/
   /* init rx/tx buffer */
   /*********************/
@@ -90,7 +90,7 @@ void SerialNmea::rxCompleteVect(void) {
     /* reset write pos */
     writePos = txHead;
     nmeaParseStep = 0;
-  }   
+  }
 
   /* check if write is needed */
   if( serialState_isset(LOCKED) || nmeaParseStep == -1 ) {
@@ -103,7 +103,7 @@ void SerialNmea::rxCompleteVect(void) {
 
   /* check if we can write to the buffer, we never use the last byte of the buffer */
   uint8_t nextPos = (writePos + 1) % SERIAL_NMEA_BUFFER_SIZE;
-  
+
   if( nextPos == txTail ||
       ( serialState_isset(SENTENCE_LOCKED) && writePos == readPos ) || //never overwrite reading sentence
       ( serialState_isset(RMC_FOUND) && writePos == rmcPos ) ||        //never overwrite same sentence
@@ -113,7 +113,7 @@ void SerialNmea::rxCompleteVect(void) {
     nmeaParseStep = -1;
     return;
   }
-  
+
   /* write */
   buffer[writePos] = c;
   writePos = nextPos;
@@ -145,7 +145,7 @@ void SerialNmea::rxCompleteVect(void) {
     }
     nmeaParseStep++;
   }
-  
+
   /* parse nmea tag */
   if( nmeaParseStep < NMEA_TAG_SIZE ) { // on the nmea tag
     if( c != pgm_read_byte_near(rmcTag + nmeaParseStep) ) {
@@ -160,7 +160,7 @@ void SerialNmea::rxCompleteVect(void) {
 
   /* check nmea tag */
   else if( nmeaParseStep == NMEA_TAG_SIZE ) { //on the ',' just after the tag
-   
+
     if( c != ',' || (! serialState_isset(RMC_TAG_FOUND) && ! serialState_isset(GGA_TAG_FOUND) ) ) {
       nmeaParseStep = -1; //bad sensence
       writePos = txHead;
@@ -176,7 +176,7 @@ void SerialNmea::rxCompleteVect(void) {
 
   /* wait for parity */
   else if( nmeaParseStep == NMEA_TAG_SIZE + 1 ) { //before or on dot
-   
+
     if( c == '*' ) {
       parityTag = 0;
       nmeaParseStep++;
@@ -186,7 +186,7 @@ void SerialNmea::rxCompleteVect(void) {
 
   /* check parity */
   else if ( nmeaParseStep == NMEA_TAG_SIZE + 4 + SERIAL_NMEA_NEWLINE_LENGTH ) { //parity tag read + newline
-     
+
     if( nmeaParity != parityTag ) {
       nmeaParseStep = -1; //bad sensence
       writePos = txHead;
@@ -224,7 +224,7 @@ void SerialNmea::udrEmptyVect(void) {
   if (txHead == txTail) {
     cbi(UCSRB, UDRIE);
   }
-  
+
 }
 
 
@@ -253,13 +253,13 @@ bool SerialNmea::lockGGA(void) {
   readPos = ggaPos;
   serialState_set(SENTENCE_LOCKED);
   serialState_set(LOCKED_GGA);
-  
+
   return true;
 }
 
 
 void SerialNmea::release() {
-  
+
   if( serialState_isset(LOCKED_RMC) ) {
     serialState_unset(RMC_FOUND);
     serialState_unset(LOCKED_RMC);
@@ -289,7 +289,7 @@ void SerialNmea::lock(void) {
   /* clear if partial sentences are parsed */
   nmeaParseStep = -1;
   writePos = txHead;
-  
+
 }
 
 void SerialNmea::write(uint8_t c) {
@@ -311,4 +311,4 @@ void SerialNmea::write(uint8_t c) {
 
 
 
-  
+

@@ -1,4 +1,5 @@
 #include <Arduino.h>
+// #include <HardwareSerial.h>
 #include <SPI.h>
 #include <VarioSettings.h>
 #include <I2Cdev.h>
@@ -14,7 +15,7 @@
 #include <digit.h>
 #include <SdCard.h>
 #include <LightFat16.h>
-#include <SerialNmea.h>
+// #include <SerialNmea.h>
 #include <NmeaParser.h>
 #include <LxnavSentence.h>
 #include <LK8Sentence.h>
@@ -32,7 +33,7 @@
 /*******************/
 /* General objects */
 /*******************/
-#define VARIOMETER_POWER_ON_DELAY 2000 
+#define VARIOMETER_POWER_ON_DELAY 2000
 
 #define VARIOMETER_STATE_INITIAL 0
 #define VARIOMETER_STATE_DATE_RECORDED 1
@@ -72,7 +73,7 @@ Vertaccel vertaccel(vertaccelSettings);
 
 unsigned long lastLowFreqUpdate = 0;
 
-#ifdef HAVE_GPS 
+#ifdef HAVE_GPS
 #define VARIOSCREEN_ALTI_ANCHOR_X 52
 #define VARIOSCREEN_ALTI_ANCHOR_Y 0
 #define VARIOSCREEN_VARIO_ANCHOR_X 52
@@ -148,11 +149,11 @@ ScreenScheduler varioScreen(screen, displayList, sizeof(displayList)/sizeof(Scre
 /* alti/vario objects */
 /**********************/
 #define POSITION_MEASURE_STANDARD_DEVIATION 0.1
-#ifdef HAVE_ACCELEROMETER 
+#ifdef HAVE_ACCELEROMETER
 #define ACCELERATION_MEASURE_STANDARD_DEVIATION 0.3
 #else
 #define ACCELERATION_MEASURE_STANDARD_DEVIATION 0.6
-#endif //HAVE_ACCELEROMETER 
+#endif //HAVE_ACCELEROMETER
 
 kalmanvert kalmanvert;
 
@@ -210,9 +211,9 @@ unsigned long lastVarioSentenceTimestamp = 0;
 #endif // !HAVE_GPS
 #endif //HAVE_BLUETOOTH
 
-#if defined(HAVE_ACCELEROMETER) && defined(HAVE_SPEAKER) 
+#if defined(HAVE_ACCELEROMETER) && defined(HAVE_SPEAKER)
 /* tap callback : mute/unmute beeper */
-void beeperTapCallback(unsigned char direction, unsigned char count) { 
+void beeperTapCallback(unsigned char direction, unsigned char count) {
 
   static bool muted = false;
   muted = !muted;
@@ -221,13 +222,15 @@ void beeperTapCallback(unsigned char direction, unsigned char count) {
   muteIndicator.setMuteState(muted);
 #endif //HAVE_SCREEN
 }
-#endif //defined(HAVE_ACCELEROMETER) && defined(HAVE_SPEAKER) 
+#endif //defined(HAVE_ACCELEROMETER) && defined(HAVE_SPEAKER)
 
 
 /*-----------------*/
 /*      SETUP      */
 /*-----------------*/
 void setup() {
+   Serial.begin(9600);
+   Serial.println("Serial started");
 
   /*****************************/
   /* wait for devices power on */
@@ -248,7 +251,7 @@ void setup() {
 
   /************/
   /* init SPI */
-  /************/ 
+  /************/
 
   /* set all SPI CS lines before talking to devices */
 #if defined(HAVE_SDCARD) && defined(HAVE_GPS)
@@ -267,34 +270,23 @@ void setup() {
     sdcardState = SDCARD_STATE_INITIALIZED;  //useless to set error
   }
 #endif //defined(HAVE_SDCARD) && defined(HAVE_GPS)
- 
+
   /***************/
   /* init screen */
   /***************/
 #ifdef HAVE_SCREEN
   screen.begin(VARIOSCREEN_CONTRAST);
 #endif //HAVE_SCREEN
-  
+
   /******************/
   /* init barometer */
   /******************/
   ms5611_init();
-  
-  /**************************/
-  /* init gps and bluetooth */
-  /**************************/
-#if defined(HAVE_BLUETOOTH) || defined(HAVE_GPS)
-#ifdef HAVE_GPS
-  serialNmea.begin(GPS_BLUETOOTH_BAUDS, true);
-#else
-  serialNmea.begin(GPS_BLUETOOTH_BAUDS, false);
-#endif //HAVE_GPS
-#endif //defined(HAVE_BLUETOOTH) || defined(HAVE_GPS)
-  
+
   /******************/
   /* get first data */
   /******************/
-  
+
   /* wait for first alti and acceleration */
   while( ! (ms5611_dataReady()
 #ifdef HAVE_ACCELEROMETER
@@ -302,7 +294,7 @@ void setup() {
 #endif //HAVE_ACCELEROMETER
             ) ) {
   }
-  
+
   /* get first data */
   ms5611_updateData();
 
@@ -316,7 +308,7 @@ void setup() {
                   POSITION_MEASURE_STANDARD_DEVIATION,
                   ACCELERATION_MEASURE_STANDARD_DEVIATION,
                   millis());
-   
+
 }
 
 #if defined(HAVE_SDCARD) && defined(HAVE_GPS)
@@ -328,7 +320,7 @@ void enableflightStartComponents(void);
 /*      LOOP      */
 /*----------------*/
 void loop() {
- 
+
   /*****************************/
   /* compute vertical velocity */
   /*****************************/
@@ -336,12 +328,31 @@ void loop() {
   if( ms5611_dataReady() && vertaccel.dataReady() ) {
     ms5611_updateData();
 
-    kalmanvert.update( ms5611_getAltitude(),
-                       vertaccel.getValue(),
+    double barAlt = ms5611_getAltitude();
+    double vertAcc = vertaccel.getValue();
+
+    // Monitor Kalman input with accel
+    Serial.print("Kalman input(with vertaccel): ");
+    Serial.print("altitude: ");
+    Serial.print(barAlt);
+    Serial.print("acceleration: ");
+    Serial.print(vertAcc);
+    Serial.println("");
+
+    kalmanvert.update( barAlt,
+                       vertAcc,
                        millis() );
 #else
   if( ms5611_dataReady() ) {
     ms5611_updateData();
+
+    // Monitor Kalman input with accel
+    // Serial.print("Kalman input(no vertaccel): ");
+    // Serial.print("altitude: ");
+    // Serial.print(barAlt);
+    // Serial.print("acceleration: ");
+    // Serial.print(0.0);
+    // Serial.println("");
 
     kalmanvert.update( ms5611_getAltitude(),
                        0.0,
@@ -358,8 +369,8 @@ void loop() {
     altiDigit.setValue(kalmanvert.getCalibratedPosition());
     varioDigit.setValue(kalmanvert.getVelocity() );
 #endif //HAVE_SCREEN
-   
-    
+
+
   }
 
   /*****************/
@@ -370,102 +381,6 @@ void loop() {
 #endif //HAVE_SPEAKER
 
 
-  /********************/
-  /* update bluetooth */
-  /********************/
-#ifdef HAVE_BLUETOOTH
-#ifdef HAVE_GPS
-  /* in priority send vario nmea sentence */
-  if( bluetoothNMEA.available() ) {
-    while( bluetoothNMEA.available() ) {
-       serialNmea.write( bluetoothNMEA.get() );
-    }
-    serialNmea.release();
-  }
-#else //!HAVE_GPS
-  /* check the last vario nmea sentence */
-  if( millis() - lastVarioSentenceTimestamp > VARIOMETER_SENTENCE_DELAY ) {
-    lastVarioSentenceTimestamp = millis();
-#ifdef VARIOMETER_BLUETOOTH_SEND_CALIBRATED_ALTITUDE
-    bluetoothNMEA.begin(kalmanvert.getCalibratedPosition(), kalmanvert.getVelocity());
-#else
-    bluetoothNMEA.begin(kalmanvert.getPosition(), kalmanvert.getVelocity());
-#endif
-    while( bluetoothNMEA.available() ) {
-       serialNmea.write( bluetoothNMEA.get() );
-    }
-  }
-#endif //!HAVE_GPS
-#endif //HAVE_BLUETOOTH
-
-
-  /**************/
-  /* update GPS */
-  /**************/
-#ifdef HAVE_GPS
-#ifdef HAVE_BLUETOOTH
-  /* else try to parse GPS nmea */
-  else {
-#endif //HAVE_BLUETOOTH
-    
-    /* try to lock sentences */
-    if( serialNmea.lockRMC() ) {
-      RMCSentenceTimestamp = millis();
-      RMCSentenceCurrentAlti = kalmanvert.getPosition(); //useless to take calibrated here
-      nmeaParser.beginRMC();
-    } else if( serialNmea.lockGGA() ) {
-      nmeaParser.beginGGA();
-#ifdef HAVE_BLUETOOTH
-      lastSentence = true;
-#endif //HAVE_BLUETOOTH
-#ifdef HAVE_SDCARD      
-      /* start to write IGC B frames */
-      if( sdcardState == SDCARD_STATE_READY ) {
-#ifdef VARIOMETER_SDCARD_SEND_CALIBRATED_ALTITUDE
-        file.write( igc.begin( kalmanvert.getCalibratedPosition() ) );
-#else
-        file.write( igc.begin( kalmanvert.getPosition() ) );
-#endif
-      }
-#endif //HAVE_SDCARD
-    }
-  
-    /* parse if needed */
-    if( nmeaParser.isParsing() ) {
-      while( nmeaParser.isParsing() ) {
-        uint8_t c = serialNmea.read();
-        
-        /* parse sentence */        
-        nmeaParser.feed( c );
-
-#ifdef HAVE_SDCARD          
-        /* if GGA, convert to IGC and write to sdcard */
-        if( sdcardState == SDCARD_STATE_READY && nmeaParser.isParsingGGA() ) {
-          igc.feed(c);
-          while( igc.available() ) {
-            file.write( igc.get() );
-          }
-        }
-#endif //HAVE_SDCARD
-      }
-      serialNmea.release();
-    
-#ifdef HAVE_BLUETOOTH   
-      /* if this is the last GPS sentence */
-      /* we can send our sentences */
-      if( lastSentence ) {
-          lastSentence = false;
-#ifdef VARIOMETER_BLUETOOTH_SEND_CALIBRATED_ALTITUDE
-          bluetoothNMEA.begin(kalmanvert.getCalibratedPosition(), kalmanvert.getVelocity());
-#else
-          bluetoothNMEA.begin(kalmanvert.getPosition(), kalmanvert.getVelocity());
-#endif
-          serialNmea.lock(); //will be writed at next loop
-      }
-#endif //HAVE_BLUETOOTH
-    }
-  
-  
     /***************************/
     /* update variometer state */
     /*    (after parsing)      */
@@ -478,26 +393,23 @@ void loop() {
           variometerState = VARIOMETER_STATE_DATE_RECORDED;
         }
       }
-      
+
       /* check if we need to calibrate the altimeter */
       else if( variometerState == VARIOMETER_STATE_DATE_RECORDED ) {
-        
+
         /* we need a good quality value */
         if( nmeaParser.haveNewAltiValue() && nmeaParser.precision < VARIOMETER_GPS_ALTI_CALIBRATION_PRECISION_THRESHOLD ) {
-          
+
           /* calibrate */
           double gpsAlti = nmeaParser.getAlti();
           kalmanvert.calibratePosition(gpsAlti);
           variometerState = VARIOMETER_STATE_CALIBRATED;
-#if defined(HAVE_SDCARD) && ! defined(VARIOMETER_RECORD_WHEN_FLIGHT_START)
-          createSDCardTrackFile();
-#endif //defined(HAVE_SDCARD) && ! defined(VARIOMETER_RECORD_WHEN_FLIGHT_START)
         }
       }
-      
+
       /* else check if the flight have started */
       else {  //variometerState == VARIOMETER_STATE_CALIBRATED
-        
+
         /* check flight start condition */
         if( (millis() > FLIGHT_START_MIN_TIMESTAMP) &&
             (kalmanvert.getVelocity() < FLIGHT_START_VARIO_LOW_THRESHOLD || kalmanvert.getVelocity() > FLIGHT_START_VARIO_HIGH_THRESHOLD) &&
@@ -507,14 +419,10 @@ void loop() {
         }
       }
     }
-#ifdef HAVE_BLUETOOTH
-  }
-#endif //HAVE_BLUETOOTH
-#endif //HAVE_GPS
 
   /* if no GPS, we can't calibrate, and we have juste to check flight start */
 #ifndef HAVE_GPS
-  if( variometerState == VARIOMETER_STATE_CALIBRATED ) { //already calibrated at start 
+  if( variometerState == VARIOMETER_STATE_CALIBRATED ) { //already calibrated at start
     if( (millis() > FLIGHT_START_MIN_TIMESTAMP) &&
         (kalmanvert.getVelocity() < FLIGHT_START_VARIO_LOW_THRESHOLD || kalmanvert.getVelocity() > FLIGHT_START_VARIO_HIGH_THRESHOLD) ) {
       variometerState = VARIOMETER_STATE_FLIGHT_STARTED;
@@ -546,7 +454,7 @@ void loop() {
 
       /* update satelite count */
       satLevel.setSatelliteCount( nmeaParser.satelliteCount );
-#endif //HAVE_GPS  
+#endif //HAVE_GPS
 
 #ifdef HAVE_VOLTAGE_DIVISOR
       /* update battery level */
@@ -555,11 +463,11 @@ void loop() {
 
 #ifdef HAVE_GPS //no multipage without GPS
       varioScreen.nextPage();
-#endif //HAVE_GPS multipage support      
+#endif //HAVE_GPS multipage support
     }
   }
 
-   
+
   /*****************/
   /* update screen */
   /*****************/
@@ -571,9 +479,9 @@ void loop() {
     unsigned long baseTime = speedFilterTimestamps[speedFilterPos];
     unsigned long deltaTime = RMCSentenceTimestamp; //delta computed later
     speedFilterTimestamps[speedFilterPos] = RMCSentenceTimestamp;
-    
+
     double deltaAlti = speedFilterAltiValues[speedFilterPos]; //computed later
-    speedFilterAltiValues[speedFilterPos] = RMCSentenceCurrentAlti; 
+    speedFilterAltiValues[speedFilterPos] = RMCSentenceCurrentAlti;
 
     double currentSpeed = nmeaParser.getSpeed();
     speedFilterSpeedValues[speedFilterPos] = currentSpeed;
@@ -585,7 +493,7 @@ void loop() {
     /* compute deltas */
     deltaAlti -= RMCSentenceCurrentAlti;
     deltaTime -= baseTime;
-    
+
     /* compute mean distance */
     double meanDistance = 0;
     int step = 0;
@@ -606,7 +514,7 @@ void loop() {
     /* compute glide ratio */
     double ratio = (meanDistance/3600.0)/deltaAlti;
 
-    /* display speed and ratio */    
+    /* display speed and ratio */
     speedDigit.setValue( currentSpeed );
     if( currentSpeed >= RATIO_MIN_SPEED && ratio >= 0.0 && ratio < RATIO_MAX_VALUE ) {
       ratioDigit.setValue(ratio);
@@ -619,7 +527,7 @@ void loop() {
   /* screen update */
   varioScreen.displayStep();
 
-#endif //HAVE_SCREEN 
+#endif //HAVE_SCREEN
 }
 
 
@@ -644,10 +552,10 @@ void createSDCardTrackFile(void) {
       date /= 100;
     }
 
-    /* create file */    
+    /* create file */
     if( file.begin((char*)dateChar, 8) >= 0 ) {
       sdcardState = SDCARD_STATE_READY;
-            
+
       /* write the header */
       int16_t datePos = header.begin();
       if( datePos >= 0 ) {
@@ -665,13 +573,13 @@ void createSDCardTrackFile(void) {
           header.get();
           dateCharP -= 2;
         }
-            
+
         while( header.available() ) {
           file.write(header.get());
         }
       }
     } else {
-      sdcardState = SDCARD_STATE_ERROR; //avoid retry 
+      sdcardState = SDCARD_STATE_ERROR; //avoid retry
     }
   }
 }

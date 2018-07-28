@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa, unsigned long timestamp) {
-  Serial.begin(9600);
+//  Serial.begin(9600);
   /* init base values */
   p = startp;
   v = 0;
@@ -23,13 +23,13 @@ void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa
 }
 
 void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
-  Serial.print("Kalman::update( ");
-  Serial.print("altitude: ");
-  Serial.print(mp);
-  Serial.print("acceleration: ");
-  Serial.print(ma);
-  Serial.print(")");
-  Serial.println("");
+//  Serial.print("Kalman::update( ");
+//  Serial.print("altitude: ");
+//  Serial.print(mp);
+//  Serial.print("acceleration: ");
+//  Serial.print(ma);
+//  Serial.print(")");
+//  Serial.println("");
   /**************/
   /* delta time */
   /**************/
