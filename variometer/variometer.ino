@@ -380,46 +380,6 @@ void loop() {
   beeper.update();
 #endif //HAVE_SPEAKER
 
-
-    /***************************/
-    /* update variometer state */
-    /*    (after parsing)      */
-    /***************************/
-    if( variometerState < VARIOMETER_STATE_FLIGHT_STARTED ) {
-
-      /* if initial state check if date is recorded  */
-      if( variometerState == VARIOMETER_STATE_INITIAL ) {
-        if( nmeaParser.haveDate() ) {
-          variometerState = VARIOMETER_STATE_DATE_RECORDED;
-        }
-      }
-
-      /* check if we need to calibrate the altimeter */
-      else if( variometerState == VARIOMETER_STATE_DATE_RECORDED ) {
-
-        /* we need a good quality value */
-        if( nmeaParser.haveNewAltiValue() && nmeaParser.precision < VARIOMETER_GPS_ALTI_CALIBRATION_PRECISION_THRESHOLD ) {
-
-          /* calibrate */
-          double gpsAlti = nmeaParser.getAlti();
-          kalmanvert.calibratePosition(gpsAlti);
-          variometerState = VARIOMETER_STATE_CALIBRATED;
-        }
-      }
-
-      /* else check if the flight have started */
-      else {  //variometerState == VARIOMETER_STATE_CALIBRATED
-
-        /* check flight start condition */
-        if( (millis() > FLIGHT_START_MIN_TIMESTAMP) &&
-            (kalmanvert.getVelocity() < FLIGHT_START_VARIO_LOW_THRESHOLD || kalmanvert.getVelocity() > FLIGHT_START_VARIO_HIGH_THRESHOLD) &&
-            (nmeaParser.getSpeed() > FLIGHT_START_MIN_SPEED) ) {
-          variometerState = VARIOMETER_STATE_FLIGHT_STARTED;
-          enableflightStartComponents();
-        }
-      }
-    }
-
   /* if no GPS, we can't calibrate, and we have juste to check flight start */
 #ifndef HAVE_GPS
   if( variometerState == VARIOMETER_STATE_CALIBRATED ) { //already calibrated at start
@@ -530,63 +490,6 @@ void loop() {
 #endif //HAVE_SCREEN
 }
 
-
-
-#if defined(HAVE_SDCARD) && defined(HAVE_GPS)
-void createSDCardTrackFile(void) {
-  /* start the sdcard record */
-  if( sdcardState == SDCARD_STATE_INITIALIZED ) {
-
-    /* some cards doesn't like delays between init and write, so reinit */
-    file.init();
-
-    /* build date : convert from DDMMYY to YYMMDD */
-    uint8_t dateChar[8]; //two bytes are used for incrementing number on filename
-    uint8_t* dateCharP = dateChar;
-    uint32_t date = nmeaParser.date;
-    for(uint8_t i=0; i<3; i++) {
-      uint8_t num = ((uint8_t)(date%100));
-      dateCharP[0] = (num/10) + '0';
-      dateCharP[1] = (num%10) + '0';
-      dateCharP += 2;
-      date /= 100;
-    }
-
-    /* create file */
-    if( file.begin((char*)dateChar, 8) >= 0 ) {
-      sdcardState = SDCARD_STATE_READY;
-
-      /* write the header */
-      int16_t datePos = header.begin();
-      if( datePos >= 0 ) {
-        while( datePos ) {
-        file.write(header.get());
-          datePos--;
-        }
-
-        /* write date : DDMMYY */
-        uint8_t* dateCharP = &dateChar[4];
-        for(int i=0; i<3; i++) {
-          file.write(dateCharP[0]);
-          file.write(dateCharP[1]);
-          header.get();
-          header.get();
-          dateCharP -= 2;
-        }
-
-        while( header.available() ) {
-          file.write(header.get());
-        }
-      }
-    } else {
-      sdcardState = SDCARD_STATE_ERROR; //avoid retry
-    }
-  }
-}
-#endif //defined(HAVE_SDCARD) && defined(HAVE_GPS)
-
-
-
 void enableflightStartComponents(void) {
   /* set base time */
 #if defined(HAVE_SCREEN) && defined(HAVE_GPS)
@@ -602,9 +505,5 @@ void enableflightStartComponents(void) {
   beeper.setGlidingBeepState(true);
 #endif
 #endif //HAVE_SPEAKER
-
-#if defined(HAVE_SDCARD) && defined(HAVE_GPS) && defined(VARIOMETER_RECORD_WHEN_FLIGHT_START)
-  createSDCardTrackFile();
-#endif // defined(HAVE_SDCARD) && defined(VARIOMETER_RECORD_WHEN_FLIGHT_START)
 }
 
