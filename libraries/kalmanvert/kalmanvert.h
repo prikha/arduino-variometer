@@ -3,6 +3,11 @@
 
 #include <Arduino.h>
 
+const float VELOCITY_STEP = 0.1;
+const int VELOCITY_HOLD_CYCLES = 1000;
+const int VELOCITY_MIN = -8;
+const int VELOCITY_MAX = 8;
+
 /*********************************************************/
 /* compute velocity from known position and acceleration */
 /* p = position, v = velocity, a = acceleration          */
@@ -34,7 +39,7 @@ class kalmanvert {
  private:
   /* position variance, acceleration variance */
   double varp, vara;
-  
+
   /* position, velocity, acceleration, timestamp */
   double p, v, a;
   unsigned long t;
@@ -44,7 +49,9 @@ class kalmanvert {
 
   /* covariance matrix */
   double p11, p21, p12, p22;
-  
+
+  int current_hold_cycle;
+  int current_velocity;
 };
 
 #endif

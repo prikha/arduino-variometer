@@ -3,6 +3,9 @@
 #include <Arduino.h>
 
 void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa, unsigned long timestamp) {
+  Serial.begin(57600);
+  Serial.println("Debug vert vel scan:");
+  Serial.println("cycle | velocity ");
 
   /* init base values */
   p = startp;
@@ -10,7 +13,7 @@ void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa
   a = starta;
   t = timestamp;
   calibrationDrift = 0.0;
-    
+
   /* init variance */
   varp = sigmap * sigmap;
   vara = sigmaa * sigmaa;
@@ -20,6 +23,9 @@ void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa
   p12 = 0;
   p21 = 0;
   p22 = 0;
+
+  current_hold_cycle = 0;
+  current_velocity = VELOCITY_MIN;
 }
 
 void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
@@ -36,15 +42,15 @@ void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
   /**************/
 
   /* values */
-  a = ma;  // we use the last acceleration value for prediction 
+  a = ma;  // we use the last acceleration value for prediction
   double dtPower = dt * dt; //dt^2
   p += dt*v + dtPower*a/2;
   v += dt*a;
-  //a = ma; // uncomment to use the previous acceleration value 
+  //a = ma; // uncomment to use the previous acceleration value
 
   /* covariance */
   double inc;
-  
+
   dtPower *= dt;  // now dt^3
   inc = dt*p22+dtPower*vara/2;
   dtPower *= dt; // now dt^4
@@ -72,7 +78,7 @@ void kalmanvert::update(double mp, double ma, unsigned long timestamp) {
   p12 -= k12 * p11;
   p21 -= k11 * p21;
   p11 -= k11 * p11;
- 
+
 }
 
 double kalmanvert::getPosition() {
@@ -86,8 +92,31 @@ double kalmanvert::getCalibratedPosition() {
 }
 
 double kalmanvert::getVelocity() {
+  // increment and hold for another round
+  if(current_hold_cycle >= VELOCITY_HOLD_CYCLES) {
+    current_velocity += VELOCITY_STEP;
+    current_hold_cycle = 1;
+  }
 
-  return v;
+  // Start over once maximum reached
+  if(current_velocity >= VELOCITY_MAX) {
+    current_velocity = VELOCITY_MIN;
+  }
+
+  current_hold_cycle += 1;
+
+  Serial.print(current_hold_cycle);
+  Serial.print("/");
+  Serial.print(VELOCITY_HOLD_CYCLES);
+  Serial.print(" | ");
+  Serial.print(current_velocity);
+  Serial.print("/");
+  Serial.print(VELOCITY_MIN);
+  Serial.print("..");
+  Serial.print(VELOCITY_MAX);
+  Serial.println(";")
+
+  return current_velocity;
 }
 
 double kalmanvert::getAcceleration() {
