@@ -3,10 +3,6 @@
 #include <Arduino.h>
 
 void kalmanvert::init(double startp, double starta, double sigmap, double sigmaa, unsigned long timestamp) {
-  Serial.begin(57600);
-  Serial.println("Debug vert vel scan:");
-  Serial.println("cycle | velocity ");
-
   /* init base values */
   p = startp;
   v = 0;
@@ -104,17 +100,6 @@ double kalmanvert::getVelocity() {
   }
 
   current_hold_cycle += 1;
-
-  Serial.print(current_hold_cycle);
-  Serial.print("/");
-  Serial.print(VELOCITY_HOLD_CYCLES);
-  Serial.print(" | ");
-  Serial.print(current_velocity);
-  Serial.print("/");
-  Serial.print(VELOCITY_MIN);
-  Serial.print("..");
-  Serial.print(VELOCITY_MAX);
-  Serial.println(";")
 
   return current_velocity;
 }
